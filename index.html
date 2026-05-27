@@ -308,12 +308,12 @@
   <div id="map"></div>
 
   <!-- 지도 UI 오버레이 -->
-  <img class="ui el-search"    src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/ce8809c7-958a-4d3c-bfd6-e62782fb654e" alt="검색바">
-  <img class="ui el-compass"   src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/47fa6c75-acad-4a6f-bda4-cd1f9a1b6f6f" alt="나침반">
-  <img class="ui el-location"  src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/a334dc25-9e25-4e33-9dc2-7b7d74e536c3" alt="위치버튼">
-  <img class="ui el-tabs"      src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/9ee5aaf1-590e-460f-9a20-a5f06a42f913" alt="필터탭">
-  <img class="ui el-card"      src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/7cc7b64d-1cf3-40cc-af48-548cbbcc3e6e" alt="하단카드">
-  <img class="ui el-searchbtn" src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/68d16e67-c12b-405b-822c-b8c68be49d3b" alt="검색버튼">
+  <img class="ui el-search"    src="images/el-search.png"    alt="검색바">
+  <img class="ui el-compass"   src="images/el-compass.png"   alt="나침반">
+  <img class="ui el-location"  src="images/el-location.png"  alt="위치버튼">
+  <img class="ui el-tabs"      src="images/el-tabs.png"      alt="필터탭">
+  <img class="ui el-card"      src="images/el-card.png"      alt="하단카드">
+  <img class="ui el-searchbtn" src="images/el-searchbtn.png" alt="검색버튼">
 
   <!-- 지도 dim (expanded 상태) -->
   <div id="map-expanded-dim"></div>
@@ -333,7 +333,7 @@
         <div class="sheet-close-btn" onclick="closeSheet()"></div>
         <div class="sheet-bookmark-btn" onclick="openModal('tenmimi-modal')"></div>
         <img class="sheet-body-img"
-             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/1cd88226-f471-4f3f-a0d8-96283c491c6d"
+             src="images/sheet-tenmimi.png"
              alt="티엔미미 콘텐츠">
       </div>
     </div>
@@ -347,7 +347,7 @@
         <div class="sheet-close-btn" onclick="closeSheet()"></div>
         <div class="sheet-bookmark-btn" onclick="openModal('sinjindo-modal')"></div>
         <img class="sheet-body-img"
-             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/8638fb1d-6acb-4c62-bf3a-c3bb293f20e6"
+             src="images/sheet-sinjindo.png"
              alt="신진도간장게장 콘텐츠">
       </div>
     </div>
@@ -361,7 +361,7 @@
         <div class="sheet-close-btn" onclick="closeSheet()"></div>
         <div class="sheet-bookmark-btn" onclick="openModal('meonjakkwi-modal')"></div>
         <img class="sheet-body-img"
-             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/b25971b0-fa7f-480d-8ddc-1bc24e480a8f"
+             src="images/sheet-meonjakkwi.png"
              alt="먼작귀 팝업 콘텐츠">
       </div>
     </div>
@@ -375,7 +375,7 @@
         <div class="sheet-close-btn" onclick="closeSheet()"></div>
         <div class="sheet-bookmark-btn" onclick="openModal('nusantara-modal')"></div>
         <img class="sheet-body-img"
-             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/443c8939-f3f9-4d2b-b10a-cec53c5c14ea"
+             src="images/sheet-nusantara.png"
              alt="누산타라쿠 콘텐츠">
       </div>
     </div>
@@ -389,7 +389,7 @@
         <div class="sheet-close-btn" onclick="closeSheet()"></div>
         <div class="sheet-bookmark-btn" onclick="openModal('thekitchen-modal')"></div>
         <img class="sheet-body-img"
-             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/b9f4b7df-7a89-4500-8945-bd3cb0269c41"
+             src="images/sheet-thekitchen.png"
              alt="더키친아시아 콘텐츠">
       </div>
     </div>
@@ -403,7 +403,7 @@
         <div class="sheet-close-btn" onclick="closeSheet()"></div>
         <div class="sheet-bookmark-btn" onclick="openModal('bistro-modal')"></div>
         <img class="sheet-body-img"
-             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/6c17f4f7-a492-411e-b9f7-7fc095bae440"
+             src="images/sheet-bistro.png"
              alt="비스트로주라 콘텐츠">
       </div>
     </div>
@@ -416,7 +416,7 @@
        모달창 (북마크) – 클릭하면 닫힘
   ════════════════════════════════ -->
   <div class="modal-overlay" id="tenmimi-modal" onclick="closeModal()">
-    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/56f7a42b-97f5-46b2-8648-feb7c05d948b" alt="티엔미미 모달">
+    <img src="images/modal-tenmimi.png" alt="티엔미미 모달">
     <div class="modal-popup-area" onclick="event.stopPropagation()">
       <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
       <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
@@ -426,7 +426,7 @@
     </div>
   </div>
   <div class="modal-overlay" id="sinjindo-modal" onclick="closeModal()">
-    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/847647a2-5594-46fa-aef8-f316169ea1f0" alt="신진도간장게장 모달">
+    <img src="images/modal-sinjindo.png" alt="신진도간장게장 모달">
     <div class="modal-popup-area" onclick="event.stopPropagation()">
       <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
       <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
@@ -436,7 +436,7 @@
     </div>
   </div>
   <div class="modal-overlay" id="meonjakkwi-modal" onclick="closeModal()">
-    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/a160bb2a-520f-4f0c-a8e4-eaf12c208b2a" alt="먼작귀 팝업 모달">
+    <img src="images/modal-meonjakkwi.png" alt="먼작귀 팝업 모달">
     <div class="modal-popup-area" onclick="event.stopPropagation()">
       <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
       <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
@@ -446,7 +446,7 @@
     </div>
   </div>
   <div class="modal-overlay" id="nusantara-modal" onclick="closeModal()">
-    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/4e7e60cc-27be-4772-b2dc-3ce1eb68b9a6" alt="누산타라쿠 모달">
+    <img src="images/modal-nusantara.png" alt="누산타라쿠 모달">
     <div class="modal-popup-area" onclick="event.stopPropagation()">
       <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
       <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
@@ -456,7 +456,7 @@
     </div>
   </div>
   <div class="modal-overlay" id="bistro-modal" onclick="closeModal()">
-    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/08e2a995-f587-4df9-99c3-0311f816941f" alt="비스트로주라 모달">
+    <img src="images/modal-bistro.png" alt="비스트로주라 모달">
     <div class="modal-popup-area" onclick="event.stopPropagation()">
       <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
       <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
@@ -466,7 +466,7 @@
     </div>
   </div>
   <div class="modal-overlay" id="thekitchen-modal" onclick="closeModal()">
-    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/e1553a44-e4e6-4291-a5fe-69389fa4de71" alt="더키친아시아 모달">
+    <img src="images/modal-thekitchen.png" alt="더키친아시아 모달">
     <div class="modal-popup-area" onclick="event.stopPropagation()">
       <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
       <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
@@ -478,7 +478,7 @@
 
   <!-- 테스트 완료 화면 -->
   <div id="completion-screen">
-    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/d93ffb40-d01d-46ca-bee1-da80a75847c9" alt="테스트 완료">
+    <img src="images/completion.png" alt="테스트 완료">
     <div id="completion-reset-btn" onclick="resetToStart()"></div>
   </div>
 
@@ -634,12 +634,12 @@
    *   markers[5] → 티엔미미
    */
   const markers = [
-    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/3eedb2e4-0b81-4bc0-9cea-b89f1f9ef1d9', lat: 37.5459, lng: 126.9826, w: 81, h: 84, sheetId: 'sinjindo'    },
-    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/214cbaf0-45f2-4697-9c94-84682832cbca', lat: 37.5453, lng: 126.9851, w: 80, h: 84, sheetId: 'meonjakkwi'  },
-    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/fe0d7856-8ba4-4ba7-9920-9108d7d7c9f9', lat: 37.5443, lng: 126.9864, w: 80, h: 84, sheetId: 'nusantara'   },
-    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/f8b1bf05-69d1-40c2-848c-39832e512a4e', lat: 37.5420, lng: 126.9842, w: 80, h: 84, sheetId: 'thekitchen'  },
-    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/69b65687-d45b-483a-bcd7-0bdc8c6ce30a', lat: 37.5427, lng: 126.9860, w: 80, h: 84, sheetId: 'bistro'      },
-    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/1360c811-a2c8-4aed-88b7-9259271fa6de', lat: 37.5432, lng: 126.9827, w: 80, h: 84, sheetId: 'tenmimi'     },
+    { url: 'images/marker-sinjindo.png',   lat: 37.5459, lng: 126.9826, w: 81, h: 84, sheetId: 'sinjindo'    },
+    { url: 'images/marker-meonjakkwi.png', lat: 37.5453, lng: 126.9851, w: 80, h: 84, sheetId: 'meonjakkwi'  },
+    { url: 'images/marker-nusantara.png',  lat: 37.5443, lng: 126.9864, w: 80, h: 84, sheetId: 'nusantara'   },
+    { url: 'images/marker-thekitchen.png', lat: 37.5420, lng: 126.9842, w: 80, h: 84, sheetId: 'thekitchen'  },
+    { url: 'images/marker-bistro.png',     lat: 37.5427, lng: 126.9860, w: 80, h: 84, sheetId: 'bistro'      },
+    { url: 'images/marker-tenmimi.png',    lat: 37.5432, lng: 126.9827, w: 80, h: 84, sheetId: 'tenmimi'     },
   ];
 
   const markerInstances = {}; // sheetId → Leaflet marker
@@ -684,7 +684,7 @@
     const DESIGN_W = 393, DESIGN_H = 771;
 
     if (vw < 600) {
-      const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
+      const scale = Math.min(1, vw / DESIGN_W, vh / DESIGN_H);
 
       // body를 viewport에 완전히 고정 (주소창 높이 변화 무관)
       document.body.style.position = 'fixed';
