@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>이현민 - 플린 프로토타입</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #111827;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .device {
+      width: 393px;
+      height: 771px;
+      position: relative;
+      overflow: hidden;
+      background: #FAFAFA;
+      border-radius: 44px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 30px 90px rgba(0,0,0,0.6);
+    }
+    #map {
+      position: absolute;
+      inset: 0;
+      width: 393px;
+      height: 771px;
+      z-index: 1;
+    }
+    .leaflet-control-zoom,
+    .leaflet-control-attribution { display: none !important; }
+
+    /* ── 지도 UI 오버레이 ── */
+    .ui {
+      position: absolute;
+      z-index: 10;
+      display: block;
+      pointer-events: auto;
+    }
+    .el-search    { left: 106px; top:   2px; width: 181px; height:  56px;
+                    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); }
+    .sheet-active .el-search { transform: translateY(-70px); }
+    .el-compass   { left: 309px; top: 479px; width:  86px; height:  86px; }
+    .el-location  { left: 309px; top: 534px; width:  86px; height:  86px; }
+    .el-tabs      { left:  -2px; top: 614px; width: 457px; height:  76px; }
+    .el-card      { left:  67px; top: 676px; width: 259px; height: 103px; }
+    .el-searchbtn { left: 309px; top: 685px; width:  86px; height:  86px; }
+
+    .leaflet-div-icon { background: transparent !important; border: none !important; }
+
+    /* 마커 divIcon 래퍼 */
+    .custom-marker-div {
+      background: none !important;
+      border: none !important;
+      cursor: pointer;
+    }
+    /* 내부 img에만 scale → Leaflet의 위치 transform과 분리 */
+    .custom-marker-div img {
+      display: block;
+      transition: transform 0.15s ease;
+      transform-origin: center;
+    }
+    .custom-marker-div:hover img,
+    .custom-marker-div.active img {
+      transform: scale(1.3);
+    }
+
+    /* ═══════════════════════════════
+       바텀 시트
+    ═══════════════════════════════ */
+
+    /* 바텀시트 닫기용 투명 오버레이 */
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: transparent;
+      z-index: 19;
+      pointer-events: none;
+    }
+    .sheet-backdrop.visible {
+      pointer-events: auto;
+    }
+
+    /*
+     * 바텀 시트 패널 – 3가지 상태
+     *   closed   → translateY(771px)  : 화면 밖 (숨김)
+     *   open     → translateY(385px)  : 하단 386px만 노출
+     *   expanded → translateY(0)      : 전체 화면
+     */
+    .bottom-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 393px;
+      height: 771px;
+      background: transparent;
+      z-index: 20;
+      overflow: hidden;
+      transform: translateY(771px);
+      transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .bottom-sheet.open     { transform: translateY(315px); }
+    .bottom-sheet.expanded { transform: translateY(10px);  }
+
+    /* 바텀시트 배경 그라디언트 오버레이 */
+    .bottom-sheet::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to bottom,
+        rgba(247,247,247,0) 0%,
+        rgba(247,247,247,0) 10%,
+        rgba(247,247,247,1) 40%
+      );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* 스크롤 영역 */
+    .sheet-scroll {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      overflow-y: hidden;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    .sheet-scroll::-webkit-scrollbar { display: none; }
+
+    /* 프레임 이미지 (393×771) */
+    .sheet-frame-img {
+      display: block;
+      width: 393px;
+      height: 771px;
+    }
+
+    /*
+     * 투명 스페이서 (385px)
+     * 프레임 이미지를 제거하고 투명 div로 대체.
+     * 지도 탐색 화면이 이 영역에 비쳐 보임.
+     */
+    .sheet-spacer {
+      height: 315px;
+    }
+
+    /*
+     * 콘텐츠 이미지 클립 래퍼
+     *
+     * ★ 프레임 이미지 + 콘텐츠 이미지를 이어붙이는 방식을 폐기.
+     *   → 이어붙이는 경계(771px)에서 렌더링 차이로 인한 끊김 발생.
+     *
+     * ★ 새 방식: Frame48 전체를 하나의 이미지로 표시.
+     *   스페이서(385px) 아래에 Frame48 전체(y=0~끝) 를 바로 연결.
+     *   끊김 없음.
+     *
+     * Frame48 PNG 그림자 패딩:
+     *   Figma: 357px × H px → PNG: 397px × (H+20)px  (좌우 20px, 상하 10px)
+     *
+     * top: -10px  → 상단 그림자 10px만 숨김 (Frame48 y=0부터 표시)
+     * left: -20px → 좌측 그림자 20px 숨김
+     * width: 397px → PNG 원본 폭 (축소 없음)
+     * height (인라인): Frame48 Figma 높이 그대로
+     */
+    .sheet-body-clip {
+      position: relative;
+      overflow: hidden;
+      width: 357px;
+      margin: 0 auto 10px; /* bottom 10px: expanded 시 하단 잘림 보정 */
+    }
+    .sheet-body-img {
+      position: absolute;
+      top: -10px;    /* 상단 그림자 10px만 숨김 */
+      left: -20px;   /* 좌측 그림자 20px 숨김 */
+      width: 397px;  /* PNG 원본 폭 */
+    }
+
+    /* X 닫기 버튼 투명 클릭 오버레이
+     * Frame48 내 Group 18 (line-md:close) 위치: x=311, y=0, 46×46px */
+    .sheet-close-btn {
+      position: absolute;
+      left: 311px;
+      top: 0;
+      width: 46px;
+      height: 46px;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* 북마크 버튼 투명 클릭 오버레이
+     * Frame48 내 Group 19 위치: x=189, y=0, 46×46px */
+    .sheet-bookmark-btn {
+      position: absolute;
+      left: 189px;
+      top: 0;
+      width: 46px;
+      height: 46px;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* ─── 지도 dim (expanded 상태) ─── */
+    #map-expanded-dim {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      background: rgba(128, 128, 128, 0.5);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    #map-expanded-dim.visible { opacity: 1; }
+
+    /* ─── 모달 dim 배경 (애니메이션 없이 즉시 표시) ─── */
+    #modal-dim {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      background: rgba(0, 0, 0, 0.5);
+    }
+    #modal-dim.visible { display: block; }
+
+    /* ─── 모달 이미지 (애니메이션 적용) ─── */
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.93); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 51;
+      display: none;
+    }
+    .modal-overlay.visible {
+      display: block;
+      animation: modalIn 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+    .modal-overlay > img {
+      width: 393px;
+      height: 771px;
+      display: block;
+      pointer-events: none; /* 클릭이 overlay로 통과 → 팝업 밖 클릭 시 닫힘 */
+    }
+    /* 팝업 내부 영역 – 클릭해도 닫히지 않음 */
+    .modal-popup-area {
+      position: absolute;
+      left: 18px;
+      top: 169px;
+      width: 357px;
+      height: 433px;
+    }
+    /* '나중에 할게요' 클릭 영역 */
+    .modal-later-btn {
+      position: absolute;
+      left: 20px;  /* 38 - 18(popup offset) */
+      top: 375px;  /* 544 - 169(popup offset) */
+      width: 317px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    /* 공유 버튼 4개 개별 클릭 영역 (Rectangle 18~21, 각 60×60px)
+     * Group8 기준 → popup-area(18,169) 기준으로 변환 */
+    .modal-share-btn {
+      position: absolute;
+      width: 60px;
+      height: 88px; /* 아이콘(60px) + 텍스트 포함 */
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* ─── 테스트 완료 화면 ─── */
+    #completion-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 60;
+      display: none;
+    }
+    #completion-screen.visible {
+      display: block;
+      animation: modalIn 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+    #completion-screen > img {
+      width: 393px;
+      height: 771px;
+      display: block;
+    }
+    #completion-reset-btn {
+      position: absolute;
+      left: 38px;
+      top: 670px;
+      width: 317px;
+      height: 22px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div class="device">
+
+  <!-- 지도 -->
+  <div id="map"></div>
+
+  <!-- 지도 UI 오버레이 -->
+  <img class="ui el-search"    src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/ce8809c7-958a-4d3c-bfd6-e62782fb654e" alt="검색바">
+  <img class="ui el-compass"   src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/47fa6c75-acad-4a6f-bda4-cd1f9a1b6f6f" alt="나침반">
+  <img class="ui el-location"  src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/a334dc25-9e25-4e33-9dc2-7b7d74e536c3" alt="위치버튼">
+  <img class="ui el-tabs"      src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/9ee5aaf1-590e-460f-9a20-a5f06a42f913" alt="필터탭">
+  <img class="ui el-card"      src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/7cc7b64d-1cf3-40cc-af48-548cbbcc3e6e" alt="하단카드">
+  <img class="ui el-searchbtn" src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/68d16e67-c12b-405b-822c-b8c68be49d3b" alt="검색버튼">
+
+  <!-- 지도 dim (expanded 상태) -->
+  <div id="map-expanded-dim"></div>
+
+  <!-- 배경 탭 → 닫기 -->
+  <div class="sheet-backdrop" id="backdrop"></div>
+
+  <!-- ══════════════════════════
+       바텀 시트 (장소별 6개)
+  ══════════════════════════ -->
+
+  <!-- 티엔미미 (Frame 48: 357×2616) -->
+  <div class="bottom-sheet" id="tenmimi-sheet">
+    <div class="sheet-scroll">
+      <div class="sheet-spacer"></div>
+      <div class="sheet-body-clip" style="height:2616px;">
+        <div class="sheet-close-btn" onclick="closeSheet()"></div>
+        <div class="sheet-bookmark-btn" onclick="openModal('tenmimi-modal')"></div>
+        <img class="sheet-body-img"
+             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/1cd88226-f471-4f3f-a0d8-96283c491c6d"
+             alt="티엔미미 콘텐츠">
+      </div>
+    </div>
+  </div>
+
+  <!-- 신진도간장게장 (Frame 48: 357×2114) -->
+  <div class="bottom-sheet" id="sinjindo-sheet">
+    <div class="sheet-scroll">
+      <div class="sheet-spacer"></div>
+      <div class="sheet-body-clip" style="height:2114px;">
+        <div class="sheet-close-btn" onclick="closeSheet()"></div>
+        <div class="sheet-bookmark-btn" onclick="openModal('sinjindo-modal')"></div>
+        <img class="sheet-body-img"
+             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/8638fb1d-6acb-4c62-bf3a-c3bb293f20e6"
+             alt="신진도간장게장 콘텐츠">
+      </div>
+    </div>
+  </div>
+
+  <!-- 먼작귀 팝업 (Frame 48: 357×1202) -->
+  <div class="bottom-sheet" id="meonjakkwi-sheet">
+    <div class="sheet-scroll">
+      <div class="sheet-spacer"></div>
+      <div class="sheet-body-clip" style="height:1202px;">
+        <div class="sheet-close-btn" onclick="closeSheet()"></div>
+        <div class="sheet-bookmark-btn" onclick="openModal('meonjakkwi-modal')"></div>
+        <img class="sheet-body-img"
+             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/b25971b0-fa7f-480d-8ddc-1bc24e480a8f"
+             alt="먼작귀 팝업 콘텐츠">
+      </div>
+    </div>
+  </div>
+
+  <!-- 누산타라쿠 (Frame 48: 357×1162) -->
+  <div class="bottom-sheet" id="nusantara-sheet">
+    <div class="sheet-scroll">
+      <div class="sheet-spacer"></div>
+      <div class="sheet-body-clip" style="height:1162px;">
+        <div class="sheet-close-btn" onclick="closeSheet()"></div>
+        <div class="sheet-bookmark-btn" onclick="openModal('nusantara-modal')"></div>
+        <img class="sheet-body-img"
+             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/443c8939-f3f9-4d2b-b10a-cec53c5c14ea"
+             alt="누산타라쿠 콘텐츠">
+      </div>
+    </div>
+  </div>
+
+  <!-- 더키친아시아 (Frame 48: 357×2114) -->
+  <div class="bottom-sheet" id="thekitchen-sheet">
+    <div class="sheet-scroll">
+      <div class="sheet-spacer"></div>
+      <div class="sheet-body-clip" style="height:2114px;">
+        <div class="sheet-close-btn" onclick="closeSheet()"></div>
+        <div class="sheet-bookmark-btn" onclick="openModal('thekitchen-modal')"></div>
+        <img class="sheet-body-img"
+             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/b9f4b7df-7a89-4500-8945-bd3cb0269c41"
+             alt="더키친아시아 콘텐츠">
+      </div>
+    </div>
+  </div>
+
+  <!-- 비스트로주라 (Frame 48: 357×2147) -->
+  <div class="bottom-sheet" id="bistro-sheet">
+    <div class="sheet-scroll">
+      <div class="sheet-spacer"></div>
+      <div class="sheet-body-clip" style="height:2147px;">
+        <div class="sheet-close-btn" onclick="closeSheet()"></div>
+        <div class="sheet-bookmark-btn" onclick="openModal('bistro-modal')"></div>
+        <img class="sheet-body-img"
+             src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/6c17f4f7-a492-411e-b9f7-7fc095bae440"
+             alt="비스트로주라 콘텐츠">
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 dim 배경 (공유) -->
+  <div id="modal-dim" onclick="closeModal()"></div>
+
+  <!-- ════════════════════════════════
+       모달창 (북마크) – 클릭하면 닫힘
+  ════════════════════════════════ -->
+  <div class="modal-overlay" id="tenmimi-modal" onclick="closeModal()">
+    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/56f7a42b-97f5-46b2-8648-feb7c05d948b" alt="티엔미미 모달">
+    <div class="modal-popup-area" onclick="event.stopPropagation()">
+      <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:110px;top:252px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:186px;top:251px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:262px;top:251px" onclick="showCompletionScreen()"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="sinjindo-modal" onclick="closeModal()">
+    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/847647a2-5594-46fa-aef8-f316169ea1f0" alt="신진도간장게장 모달">
+    <div class="modal-popup-area" onclick="event.stopPropagation()">
+      <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:110px;top:252px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:186px;top:251px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:262px;top:251px" onclick="showCompletionScreen()"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="meonjakkwi-modal" onclick="closeModal()">
+    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/a160bb2a-520f-4f0c-a8e4-eaf12c208b2a" alt="먼작귀 팝업 모달">
+    <div class="modal-popup-area" onclick="event.stopPropagation()">
+      <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:110px;top:252px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:186px;top:251px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:262px;top:251px" onclick="showCompletionScreen()"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="nusantara-modal" onclick="closeModal()">
+    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/4e7e60cc-27be-4772-b2dc-3ce1eb68b9a6" alt="누산타라쿠 모달">
+    <div class="modal-popup-area" onclick="event.stopPropagation()">
+      <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:110px;top:252px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:186px;top:251px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:262px;top:251px" onclick="showCompletionScreen()"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="bistro-modal" onclick="closeModal()">
+    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/08e2a995-f587-4df9-99c3-0311f816941f" alt="비스트로주라 모달">
+    <div class="modal-popup-area" onclick="event.stopPropagation()">
+      <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:110px;top:252px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:186px;top:251px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:262px;top:251px" onclick="showCompletionScreen()"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="thekitchen-modal" onclick="closeModal()">
+    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/e1553a44-e4e6-4291-a5fe-69389fa4de71" alt="더키친아시아 모달">
+    <div class="modal-popup-area" onclick="event.stopPropagation()">
+      <div class="modal-later-btn" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:34px;top:251px"  onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:110px;top:252px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:186px;top:251px" onclick="showCompletionScreen()"></div>
+      <div class="modal-share-btn" style="left:262px;top:251px" onclick="showCompletionScreen()"></div>
+    </div>
+  </div>
+
+  <!-- 테스트 완료 화면 -->
+  <div id="completion-screen">
+    <img src="https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/d93ffb40-d01d-46ca-bee1-da80a75847c9" alt="테스트 완료">
+    <div id="completion-reset-btn" onclick="resetToStart()"></div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  /* ── 지도 초기화 ── */
+  const BOUNDS = L.latLngBounds([37.536, 126.978], [37.552, 126.991]);
+  const map = L.map('map', {
+    center: [37.5439, 126.9845],
+    zoom: 16,
+    minZoom: 16,
+    maxZoom: 18,
+    maxBounds: BOUNDS,
+    maxBoundsViscosity: 1.0,
+    zoomControl: false,
+    attributionControl: false,
+    dragging: true,
+    scrollWheelZoom: true,
+    touchZoom: true,
+    doubleClickZoom: true,
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+
+  /* ══════════════════════════════════════════════════════
+     바텀 시트 공통 상태 관리
+     상태: 'closed' → 'open' → 'expanded'
+  ══════════════════════════════════════════════════════ */
+  const backdrop = document.getElementById('backdrop');
+  const device   = document.querySelector('.device');
+
+  let activeSheet  = null;   // 현재 열린 시트 element
+  let activeScroll = null;   // 현재 열린 시트의 .sheet-scroll
+  let sheetState   = 'closed'; // 'closed' | 'open' | 'expanded'
+  let collapseTime = 0;      // collapseSheet() 호출 시각 (관성 튐 방지용)
+  const mapExpandedDim = document.getElementById('map-expanded-dim');
+
+  function openSheet(sheetEl) {
+    // 다른 시트가 열려 있으면 먼저 닫기
+    if (activeSheet && activeSheet !== sheetEl) {
+      activeSheet.classList.remove('open', 'expanded');
+      activeScroll.style.overflowY = 'hidden';
+    }
+
+    activeSheet  = sheetEl;
+    activeScroll = sheetEl.querySelector('.sheet-scroll');
+    sheetState   = 'open';
+
+    activeScroll.style.overflowY = 'hidden';
+    activeSheet.classList.add('open');
+    activeSheet.classList.remove('expanded');
+    backdrop.classList.add('visible');
+    device.classList.add('sheet-active');
+    requestAnimationFrame(() => { activeScroll.scrollTop = 315; });
+    setActiveMarker(sheetEl.id.replace('-sheet', ''));
+  }
+
+  function expandSheet() {
+    if (!activeSheet) return;
+    sheetState = 'expanded';
+    activeSheet.classList.add('open', 'expanded');
+    activeScroll.style.overflowY = 'auto';
+    activeScroll.scrollTop = 315;  // 스페이서 건너뜀 → Frame48 콘텐츠 바로 노출
+    mapExpandedDim.classList.add('visible');
+  }
+
+  function collapseSheet() {
+    if (!activeSheet) return;
+    sheetState = 'open';
+    collapseTime = Date.now(); // 쿨다운 시작
+    activeScroll.style.overflowY = 'hidden';
+    activeSheet.classList.remove('expanded');
+    activeScroll.scrollTop = 315;
+    mapExpandedDim.classList.remove('visible');
+  }
+
+  function closeSheet() {
+    if (!activeSheet) return;
+    sheetState = 'closed';
+    activeSheet.classList.remove('open', 'expanded');
+    backdrop.classList.remove('visible');
+    device.classList.remove('sheet-active');
+    activeScroll.style.overflowY = 'hidden';
+    activeSheet  = null;
+    activeScroll = null;
+    setActiveMarker(null);
+    mapExpandedDim.classList.remove('visible');
+  }
+
+  /* ── 배경 탭 → 닫기 ── */
+  backdrop.addEventListener('click', closeSheet);
+
+  /* ── 모달 열기 / 닫기 ── */
+  const modalDim = document.getElementById('modal-dim');
+  function openModal(modalId) {
+    modalDim.classList.add('visible');
+    document.getElementById(modalId).classList.add('visible');
+  }
+  function closeModal() {
+    modalDim.classList.remove('visible');
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('visible'));
+  }
+
+  /* ── 테스트 완료 화면 ── */
+  const completionScreen = document.getElementById('completion-screen');
+  function showCompletionScreen() {
+    closeModal();
+    completionScreen.classList.add('visible');
+  }
+  function resetToStart() {
+    completionScreen.classList.remove('visible');
+    closeSheet();
+    map.flyTo([37.5439, 126.9845], 16, { duration: 0.5, easeLinearity: 0.8 });
+  }
+
+  /* ── 모든 시트에 휠/터치 이벤트 등록 ── */
+  document.querySelectorAll('.bottom-sheet').forEach(sheetEl => {
+
+    /* 휠/트랙패드 (데스크톱) */
+    sheetEl.addEventListener('wheel', e => {
+      if (activeSheet !== sheetEl) return;
+      if (sheetState === 'open' && e.deltaY > 0 && Date.now() - collapseTime > 400) {
+        expandSheet();
+        e.preventDefault();
+      } else if (sheetState === 'expanded' && activeScroll.scrollTop <= 315 && e.deltaY < 0) {
+        collapseSheet();
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    /* 터치 스와이프 (모바일) */
+    let touchStartY = 0;
+    sheetEl.addEventListener('touchstart', e => {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    sheetEl.addEventListener('touchend', e => {
+      if (activeSheet !== sheetEl) return;
+      const dy = touchStartY - e.changedTouches[0].clientY; // 양수 = 위로 스와이프
+      if (sheetState === 'open'     && dy >  40) expandSheet();
+      if (sheetState === 'expanded' && dy < -60 && activeScroll.scrollTop === 0) collapseSheet();
+    }, { passive: true });
+  });
+
+  /* ── 마커 ── */
+  /*
+   * sheetId → 해당 시트 element ID
+   *   markers[0] → 신진도간장게장
+   *   markers[1] → 먼작귀 팝업
+   *   markers[2] → 누산타라쿠
+   *   markers[3] → 더키친아시아
+   *   markers[4] → 비스트로주라
+   *   markers[5] → 티엔미미
+   */
+  const markers = [
+    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/3eedb2e4-0b81-4bc0-9cea-b89f1f9ef1d9', lat: 37.5459, lng: 126.9826, w: 81, h: 84, sheetId: 'sinjindo'    },
+    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/214cbaf0-45f2-4697-9c94-84682832cbca', lat: 37.5453, lng: 126.9851, w: 80, h: 84, sheetId: 'meonjakkwi'  },
+    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/fe0d7856-8ba4-4ba7-9920-9108d7d7c9f9', lat: 37.5443, lng: 126.9864, w: 80, h: 84, sheetId: 'nusantara'   },
+    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/f8b1bf05-69d1-40c2-848c-39832e512a4e', lat: 37.5420, lng: 126.9842, w: 80, h: 84, sheetId: 'thekitchen'  },
+    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/69b65687-d45b-483a-bcd7-0bdc8c6ce30a', lat: 37.5427, lng: 126.9860, w: 80, h: 84, sheetId: 'bistro'      },
+    { url: 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/1360c811-a2c8-4aed-88b7-9259271fa6de', lat: 37.5432, lng: 126.9827, w: 80, h: 84, sheetId: 'tenmimi'     },
+  ];
+
+  const markerInstances = {}; // sheetId → Leaflet marker
+
+  markers.forEach(({ url, lat, lng, w, h, sheetId }) => {
+    const icon = L.divIcon({
+      html: `<img src="${url}" style="width:${w}px;height:${h}px;">`,
+      iconSize: [w, h],
+      iconAnchor: [w/2, h/2],
+      className: 'custom-marker-div'
+    });
+    const m = L.marker([lat, lng], { icon }).addTo(map);
+    markerInstances[sheetId] = m;
+    m.on('click', () => {
+        const ZOOM    = 17;
+        const H       = 771;                   // 디바이스 높이
+        const offsetY = H / 2 - H / 3;        // ≈128.5px (화면 Y 1/3 지점 보정)
+
+        // 마커를 화면 Y 1/3 지점에 위치시키는 지도 중심 좌표 계산
+        const markerPx = map.project([lat, lng], ZOOM);
+        const centerPx = L.point(markerPx.x, markerPx.y + offsetY);
+        const centerLL = map.unproject(centerPx, ZOOM);
+
+        map.flyTo(centerLL, ZOOM, { duration: 0.3, easeLinearity: 0.8 });
+
+        // 지도 이동 완료 후 해당 바텀 시트 열기
+        const sheetEl = document.getElementById(sheetId + '-sheet');
+        if (sheetEl) setTimeout(() => openSheet(sheetEl), 200);
+      });
+  });
+
+  /* 마커 active 클래스 헬퍼 */
+  function setActiveMarker(sheetId) {
+    Object.values(markerInstances).forEach(m => m.getElement()?.classList.remove('active'));
+    if (sheetId) markerInstances[sheetId]?.getElement()?.classList.add('active');
+  }
+
+  /* ── 모바일: 화면 크기에 맞게 스케일 ── */
+  function fitMobile() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const DESIGN_W = 393, DESIGN_H = 771;
+    if (vw < 600) {
+      const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
+      device.style.transform = `scale(${scale})`;
+      device.style.transformOrigin = 'top center';
+      device.style.borderRadius = '0';
+      document.body.style.alignItems = 'flex-start';
+      document.body.style.minHeight = (DESIGN_H * scale) + 'px';
+    } else {
+      device.style.transform = '';
+      device.style.transformOrigin = '';
+      device.style.borderRadius = '';
+      document.body.style.alignItems = '';
+      document.body.style.minHeight = '';
+    }
+  }
+  window.addEventListener('resize', fitMobile);
+  fitMobile();
+</script>
+
+</body>
+</html>
