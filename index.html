@@ -682,22 +682,47 @@
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const DESIGN_W = 393, DESIGN_H = 771;
+
     if (vw < 600) {
       const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
+
+      // body를 viewport에 완전히 고정 (주소창 높이 변화 무관)
+      document.body.style.position = 'fixed';
+      document.body.style.top = '0';
+      document.body.style.left = '0';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      document.body.style.minHeight = 'unset';
+      document.body.style.overflow = 'hidden';
+      document.body.style.alignItems = 'center';
+      document.body.style.justifyContent = 'center';
+
+      // device를 중앙 기준으로 스케일
+      device.style.flexShrink = '0';
       device.style.transform = `scale(${scale})`;
-      device.style.transformOrigin = 'top center';
+      device.style.transformOrigin = 'center center';
       device.style.borderRadius = '0';
-      document.body.style.alignItems = 'flex-start';
-      document.body.style.minHeight = (DESIGN_H * scale) + 'px';
     } else {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+      document.body.style.minHeight = '';
+      document.body.style.overflow = '';
+      document.body.style.alignItems = '';
+      document.body.style.justifyContent = '';
+
+      device.style.flexShrink = '';
       device.style.transform = '';
       device.style.transformOrigin = '';
       device.style.borderRadius = '';
-      document.body.style.alignItems = '';
-      document.body.style.minHeight = '';
     }
   }
   window.addEventListener('resize', fitMobile);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitMobile);
+  }
   fitMobile();
 </script>
 
