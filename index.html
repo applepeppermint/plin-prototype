@@ -684,7 +684,7 @@
     const DESIGN_W = 393, DESIGN_H = 771;
 
     if (vw < 600) {
-      const scale = Math.min(1, vw / DESIGN_W, vh / DESIGN_H);
+      const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
 
       // body를 viewport에 완전히 고정 (주소창 높이 변화 무관)
       document.body.style.position = 'fixed';
