@@ -617,9 +617,14 @@
     }, { passive: true });
     sheetEl.addEventListener('touchend', e => {
       if (activeSheet !== sheetEl) return;
-      const dy = touchStartY - e.changedTouches[0].clientY; // 양수 = 위로 스와이프
-      if (sheetState === 'open'     && dy >  40) expandSheet();
-      if (sheetState === 'expanded' && dy < -60 && activeScroll.scrollTop === 0) collapseSheet();
+      const dy = touchStartY - e.changedTouches[0].clientY;
+      if (sheetState === 'open' && dy > 40) expandSheet();
+    }, { passive: true });
+
+    /* 스크롤이 스페이서 안으로 들어오면 즉시 collapse (투명 spacer 노출 방지) */
+    sheetEl.querySelector('.sheet-scroll').addEventListener('scroll', () => {
+      if (activeSheet !== sheetEl || sheetState !== 'expanded') return;
+      if (activeScroll.scrollTop < 315) collapseSheet();
     }, { passive: true });
   });
 
